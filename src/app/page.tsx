@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -27,55 +26,78 @@ import {
   Cell
 } from "recharts";
 import { cn } from "@/lib/utils";
-
-const stats = [
-  { label: "Total Cases Analyzed", value: "12,842", icon: FileText, color: "text-primary" },
-  { label: "Active Threats", value: "142", icon: Activity, color: "text-accent" },
-  { label: "High Risk Cases", value: "84", icon: AlertTriangle, color: "text-destructive" },
-  { label: "Fraud Rings Detected", value: "12", icon: Users, color: "text-warning" },
-];
-
-const trendData = [
-  { name: '00:00', threats: 40 },
-  { name: '04:00', threats: 30 },
-  { name: '08:00', threats: 70 },
-  { name: '12:00', threats: 90 },
-  { name: '16:00', threats: 60 },
-  { name: '20:00', threats: 100 },
-  { name: '23:59', threats: 80 },
-];
-
-const categoryData = [
-  { name: 'Scams', value: 45, color: '#2563EB' },
-  { name: 'Currency', value: 25, color: '#06b6d4' },
-  { name: 'Phishing', value: 20, color: '#f59e0b' },
-  { name: 'Other', value: 10, color: '#6366f1' },
-];
-
-const recentCases = [
-  { id: "CS-8241", type: "Digital Arrest", risk: "Critical", time: "2m ago" },
-  { id: "CC-1120", type: "Currency Analysis", risk: "Low", time: "15m ago" },
-  { id: "NF-9902", type: "Network Detection", risk: "High", time: "1h ago" },
-  { id: "CS-8240", type: "OTP Fraud", risk: "Medium", time: "3h ago" },
-];
+import { useFirestore, useUser, useCollection } from "@/firebase";
+import { collection, query, orderBy, limit } from "firebase/firestore";
 
 export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
+  const { user } = useUser();
+  const { db } = useFirestore() as any;
+
+  const investigationsQuery = useMemo(() => {
+    if (!db || !user) return null;
+    return query(
+      collection(db, "users", user.uid, "investigations"),
+      orderBy("timestamp", "desc"),
+      limit(20)
+    );
+  }, [db, user]);
+
+  const { data: investigations, loading } = useCollection(investigationsQuery);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted) {
-    return (
-      <main className="min-h-screen bg-background">
-        <Navbar />
-        <div className="max-w-7xl mx-auto p-6 pt-24">
-          <div className="h-32 w-full animate-pulse bg-white/5 rounded-xl" />
-        </div>
-      </main>
-    );
-  }
+  const stats = useMemo(() => {
+    if (!investigations) return [
+      { label: "Total Cases", value: "0", icon: FileText, color: "text-primary" },
+      { label: "Active Threats", value: "0", icon: Activity, color: "text-accent" },
+      { label: "High Risk", value: "0", icon: AlertTriangle, color: "text-destructive" },
+      { label: "Alerts", value: "0", icon: Users, color: "text-warning" },
+    ];
+
+    const total = investigations.length;
+    const alerts = investigations.filter(i => i.status === 'Alert').length;
+    const highRisk = investigations.filter(i => i.riskScore > 70).length;
+
+    return [
+      { label: "Total Cases", value: total.toString(), icon: FileText, color: "text-primary" },
+      { label: "High Risk", value: highRisk.toString(), icon: AlertTriangle, color: "text-destructive" },
+      { label: "Alerts", value: alerts.toString(), icon: ShieldAlert, color: "text-warning" },
+      { label: "Active Tracking", value: total > 0 ? "Active" : "Idle", icon: Activity, color: "text-accent" },
+    ];
+  }, [investigations]);
+
+  const trendData = useMemo(() => {
+    return [
+      { name: 'Mon', threats: 40 },
+      { name: 'Tue', threats: 30 },
+      { name: 'Wed', threats: 70 },
+      { name: 'Thu', threats: 90 },
+      { name: 'Fri', threats: 60 },
+      { name: 'Sat', threats: 100 },
+      { name: 'Sun', threats: 80 },
+    ];
+  }, []);
+
+  const categoryData = useMemo(() => {
+    if (!investigations || investigations.length === 0) return [
+      { name: 'No Data', value: 100, color: '#334155' }
+    ];
+
+    const scam = investigations.filter(i => i.type === 'scam-message').length;
+    const currency = investigations.filter(i => i.type === 'counterfeit-currency').length;
+    const network = investigations.filter(i => i.type === 'network-analysis').length;
+
+    return [
+      { name: 'Scams', value: scam, color: '#2563EB' },
+      { name: 'Currency', value: currency, color: '#06b6d4' },
+      { name: 'Network', value: network, color: '#f59e0b' },
+    ];
+  }, [investigations]);
+
+  if (!mounted) return <main className="min-h-screen bg-background" />;
 
   return (
     <main className="min-h-screen pt-24 pb-12 px-6">
@@ -86,7 +108,7 @@ export default function Dashboard() {
           <h1 className="headline text-4xl font-bold mb-2">Command Center</h1>
           <p className="text-muted-foreground flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Live Intelligence Network Status: Operational
+            Live Intelligence Network Status: {loading ? "Syncing..." : "Operational"}
           </p>
         </header>
 
@@ -109,12 +131,9 @@ export default function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="glass col-span-1 lg:col-span-2">
+          <Card className="glass lg:col-span-2">
             <CardHeader>
-              <CardTitle className="headline text-lg flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-primary" />
-                Threat Trend Analysis (24h)
-              </CardTitle>
+              <CardTitle className="headline text-lg">Threat Trend Analysis</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-[300px]">
@@ -129,11 +148,8 @@ export default function Dashboard() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
                     <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
                     <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#0B1220', border: '1px solid #1e293b' }}
-                      itemStyle={{ color: '#fff' }}
-                    />
-                    <Area type="monotone" dataKey="threats" stroke="#2563eb" strokeWidth={3} fillOpacity={1} fill="url(#colorThreat)" />
+                    <Tooltip contentStyle={{ backgroundColor: '#0B1220', border: '1px solid #1e293b' }} />
+                    <Area type="monotone" dataKey="threats" stroke="#2563eb" strokeWidth={3} fill="url(#colorThreat)" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -142,34 +158,20 @@ export default function Dashboard() {
 
           <Card className="glass">
             <CardHeader>
-              <CardTitle className="headline text-lg">Case Distribution</CardTitle>
+              <CardTitle className="headline text-lg">Distribution</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-[200px] flex items-center justify-center relative">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie
-                      data={categoryData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
+                    <Pie data={categoryData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
                       {categoryData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#0B1220', border: '1px solid #1e293b' }}
-                    />
+                    <Tooltip contentStyle={{ backgroundColor: '#0B1220', border: '1px solid #1e293b' }} />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="absolute flex flex-col items-center justify-center pointer-events-none">
-                   <span className="text-2xl font-bold">100%</span>
-                   <span className="text-[10px] text-muted-foreground uppercase tracking-widest">Global</span>
-                </div>
               </div>
               <div className="mt-4 space-y-2">
                 {categoryData.map((cat) => (
@@ -178,7 +180,7 @@ export default function Dashboard() {
                       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
                       <span>{cat.name}</span>
                     </div>
-                    <span className="font-bold">{cat.value}%</span>
+                    <span className="font-bold">{cat.value}</span>
                   </div>
                 ))}
               </div>
@@ -190,33 +192,34 @@ export default function Dashboard() {
           <Card className="glass">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="headline text-lg">Recent Investigations</CardTitle>
+              <button className="text-xs text-primary hover:underline font-medium">View Archive</button>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {recentCases.map((c) => (
+                {investigations?.slice(0, 4).map((c: any) => (
                   <div key={c.id} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5 hover:border-primary/20 transition-all cursor-pointer group">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20">
                         <Clock className="w-5 h-5 text-primary" />
                       </div>
                       <div>
-                        <p className="font-bold text-sm">{c.id}</p>
-                        <p className="text-xs text-muted-foreground">{c.type}</p>
+                        <p className="font-bold text-sm">{c.title}</p>
+                        <p className="text-xs text-muted-foreground uppercase">{c.type}</p>
                       </div>
                     </div>
                     <div className="text-right">
                       <span className={cn(
                         "text-[10px] px-2 py-1 rounded-full font-bold uppercase",
-                        c.risk === "Critical" ? "bg-destructive/20 text-destructive" :
-                        c.risk === "High" ? "bg-warning/20 text-warning" :
-                        c.risk === "Medium" ? "bg-primary/20 text-primary" : "bg-emerald-500/20 text-emerald-500"
+                        c.status === "Alert" ? "bg-destructive/20 text-destructive" : "bg-emerald-500/20 text-emerald-500"
                       )}>
-                        {c.risk}
+                        {c.status}
                       </span>
-                      <p className="text-[10px] text-muted-foreground mt-1">{c.time}</p>
                     </div>
                   </div>
                 ))}
+                {investigations?.length === 0 && (
+                  <p className="text-center text-muted-foreground py-10">No recent activity detected.</p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -228,14 +231,11 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="flex flex-col items-center justify-center py-8 text-center space-y-4">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
-                  <ShieldAlert className="w-16 h-16 text-primary relative z-10 animate-bounce" />
-                </div>
+                <ShieldAlert className="w-16 h-16 text-primary relative z-10 animate-bounce" />
                 <div>
-                  <h4 className="headline font-bold text-xl">New Campaign Detected</h4>
+                  <h4 className="headline font-bold text-xl">System Standby</h4>
                   <p className="text-sm text-muted-foreground max-w-xs mx-auto mt-2">
-                    Multiple reports of 'Digital Arrest' scams targeting senior citizens in the National Capital Region.
+                    Monitoring global fraud networks for real-time campaign detection.
                   </p>
                 </div>
                 <button className="bg-primary text-white headline px-8 py-3 rounded-full font-bold hover:shadow-lg hover:shadow-primary/40 transition-all">

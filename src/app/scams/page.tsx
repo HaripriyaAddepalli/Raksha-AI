@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -10,34 +9,36 @@ import { analyzeDigitalScam, DigitalScamAnalyzerOutput } from "@/ai/flows/digita
 import { Radar, AlertCircle, CheckCircle2, ShieldX, Info, ArrowRight, PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { useFirestore, useUser } from "@/firebase";
+import { collection, doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 export default function ScamDetector() {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<DigitalScamAnalyzerOutput | null>(null);
   const [mounted, setMounted] = useState(false);
+  const { db } = useFirestore() as any;
+  const { user } = useUser();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const getDemoResult = (): DigitalScamAnalyzerOutput => ({
-    riskScore: 92,
-    scamCategory: "Digital Arrest Scam",
-    confidencePercentage: 98,
-    redFlagsDetected: [
-      "Urgent request for immediate payment",
-      "Threat of arrest by law enforcement",
-      "Use of official-sounding but fake department names",
-      "Request for sensitive financial data via unsecured channel"
-    ],
-    recommendedActions: [
-      "Do not respond to the message",
-      "Report the number to local cybercrime cell",
-      "Block the sender immediately",
-      "Inform family members about this attempt"
-    ]
-  });
+  const saveInvestigation = (res: DigitalScamAnalyzerOutput) => {
+    if (!user || !db) return;
+
+    const invRef = doc(collection(db, "users", user.uid, "investigations"));
+    setDoc(invRef, {
+      userId: user.uid,
+      type: "scam-message",
+      title: `Scam Analysis: ${res.scamCategory}`,
+      timestamp: new Date().toISOString(),
+      riskScore: res.riskScore,
+      status: res.riskScore > 50 ? "Alert" : "Completed",
+      details: JSON.stringify(res),
+      createdAt: serverTimestamp(),
+    }).catch(err => console.error("Error saving investigation:", err));
+  };
 
   const handleAnalyze = async (isDemo = false) => {
     if (!content.trim() && !isDemo) return;
@@ -46,25 +47,27 @@ export default function ScamDetector() {
     setResult(null);
 
     try {
+      let output: DigitalScamAnalyzerOutput;
       if (isDemo) {
-        // Simulate a slight delay for realism
         await new Promise(r => setTimeout(r, 1500));
-        setResult(getDemoResult());
-        toast({ title: "Demo Mode Active", description: "Showing simulated high-risk analysis result." });
+        output = {
+          riskScore: 92,
+          scamCategory: "Digital Arrest Scam",
+          confidencePercentage: 98,
+          redFlagsDetected: ["Urgent payment request", "Threat of arrest", "Official-sounding fake department"],
+          recommendedActions: ["Do not respond", "Block sender", "Inform family"]
+        };
+        toast({ title: "Demo Mode Active", description: "Showing simulated results." });
       } else {
-        const output = await analyzeDigitalScam({ communicationContent: content });
-        setResult(output);
-        toast({ title: "Analysis Complete", description: "The content has been scanned for potential risks." });
+        output = await analyzeDigitalScam({ communicationContent: content });
+        toast({ title: "Analysis Complete", description: "The content has been scanned." });
       }
+      
+      setResult(output);
+      saveInvestigation(output);
     } catch (error: any) {
       console.error("Scam analysis error:", error);
-      toast({ 
-        variant: "destructive", 
-        title: "AI Analysis Unavailable", 
-        description: "Falling back to local heuristic analysis." 
-      });
-      // Fallback to demo result on error so the user isn't stuck
-      setResult(getDemoResult());
+      toast({ variant: "destructive", title: "Error", description: "Analysis failed." });
     } finally {
       setLoading(false);
     }
@@ -85,9 +88,7 @@ export default function ScamDetector() {
         <div className="space-y-6">
           <header>
             <h1 className="headline text-4xl font-bold mb-2">Scam Detector</h1>
-            <p className="text-muted-foreground">
-              Paste SMS, WhatsApp messages, or call transcripts to detect digital threats in real-time.
-            </p>
+            <p className="text-muted-foreground">Paste suspicious content to detect digital threats.</p>
           </header>
 
           <Card className="glass relative overflow-hidden">
@@ -100,7 +101,7 @@ export default function ScamDetector() {
             <CardContent className="space-y-4">
               <Textarea 
                 placeholder="Paste the suspicious content here..." 
-                className="min-h-[300px] bg-black/20 border-white/10 text-white focus:ring-primary"
+                className="min-h-[300px] bg-black/20 border-white/10 text-white"
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
               />
@@ -119,11 +120,11 @@ export default function ScamDetector() {
                 </div>
                 <Button 
                   variant="secondary" 
-                  className="w-full h-10 headline text-sm flex items-center justify-center gap-2"
+                  className="w-full h-10 headline text-sm"
                   onClick={() => handleAnalyze(true)}
                   disabled={loading}
                 >
-                  <PlayCircle className="w-4 h-4" />
+                  <PlayCircle className="w-4 h-4 mr-2" />
                   Try with Demo Data
                 </Button>
               </div>
@@ -134,23 +135,19 @@ export default function ScamDetector() {
         <div className="space-y-6">
           {!result && !loading && (
             <div className="h-full flex flex-col items-center justify-center text-center p-12 glass rounded-2xl border-dashed">
-              <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6">
-                <Info className="w-10 h-10 text-muted-foreground" />
-              </div>
+              <Info className="w-12 h-12 text-muted-foreground mb-4" />
               <h3 className="headline text-xl font-bold">Waiting for Input</h3>
-              <p className="text-muted-foreground mt-2">Analysis results will appear here once the scan is complete.</p>
+              <p className="text-muted-foreground mt-2">Results appear after scan.</p>
             </div>
           )}
 
           {loading && (
-            <div className="space-y-6">
-              <Card className="glass animate-pulse">
-                <CardContent className="py-12 flex flex-col items-center">
-                  <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-                  <p className="headline font-bold">Decrypting Communication Patterns...</p>
-                </CardContent>
-              </Card>
-            </div>
+            <Card className="glass animate-pulse">
+              <CardContent className="py-12 flex flex-col items-center">
+                <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
+                <p className="headline font-bold">Decrypting Patterns...</p>
+              </CardContent>
+            </Card>
           )}
 
           {result && (
@@ -182,18 +179,16 @@ export default function ScamDetector() {
                     </div>
                     <div className="flex-1">
                       <h4 className="headline text-2xl font-bold text-white mb-1">{result.scamCategory}</h4>
-                      <p className="text-sm text-muted-foreground">Threat Classification: {result.riskScore > 50 ? 'Malicious' : 'Safe'}</p>
                     </div>
                   </div>
 
                   <div className="space-y-3">
                     <h5 className="headline text-sm font-bold flex items-center gap-2">
-                      <ShieldX className="w-4 h-4 text-destructive" /> Red Flags Detected
+                      <ShieldX className="w-4 h-4 text-destructive" /> Red Flags
                     </h5>
                     <div className="grid grid-cols-1 gap-2">
                       {result.redFlagsDetected.map((flag, i) => (
-                        <div key={i} className="flex items-start gap-2 bg-destructive/10 border border-destructive/20 p-2 rounded text-xs text-destructive-foreground">
-                          <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
+                        <div key={i} className="bg-destructive/10 border border-destructive/20 p-2 rounded text-xs">
                           {flag}
                         </div>
                       ))}
@@ -202,12 +197,11 @@ export default function ScamDetector() {
 
                   <div className="space-y-3">
                     <h5 className="headline text-sm font-bold flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Recommended Actions
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Actions
                     </h5>
                     <div className="grid grid-cols-1 gap-2">
                       {result.recommendedActions.map((action, i) => (
-                        <div key={i} className="flex items-start gap-2 bg-emerald-500/10 border border-emerald-500/20 p-2 rounded text-xs text-white">
-                          <ArrowRight className="w-3 h-3 mt-0.5 shrink-0 text-emerald-500" />
+                        <div key={i} className="bg-emerald-500/10 border border-emerald-500/20 p-2 rounded text-xs">
                           {action}
                         </div>
                       ))}
