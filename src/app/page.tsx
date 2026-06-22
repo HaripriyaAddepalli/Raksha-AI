@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -61,6 +62,20 @@ const recentCases = [
 ];
 
 export default function Dashboard() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <main className="min-h-screen bg-background">
+        <Navbar />
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen pt-24 pb-12 px-6">
       <Navbar />
@@ -131,7 +146,7 @@ export default function Dashboard() {
               <CardTitle className="headline text-lg">Case Distribution</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-[300px] flex items-center justify-center">
+              <div className="h-[300px] flex items-center justify-center relative">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
