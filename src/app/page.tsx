@@ -27,6 +27,7 @@ import {
   PieChart,
   Pie
 } from "recharts";
+import { cn } from "@/lib/utils";
 
 const stats = [
   { label: "Total Cases Analyzed", value: "12,842", icon: FileText, color: "text-primary" },
