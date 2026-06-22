@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import ReactFlow, { 
   Background, 
   Controls, 
@@ -16,7 +16,8 @@ import 'reactflow/dist/style.css';
 import { Navbar } from "@/components/layout/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Network, Upload, FileJson, Trash2, Filter, AlertCircle, Share2 } from "lucide-react";
+import { Network, Upload, Share2, Filter } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const initialNodes = [
   { id: '1', position: { x: 250, y: 0 }, data: { label: 'Primary Account #8241' }, style: { border: '2px solid #ef4444', padding: '10px' } },
@@ -38,6 +39,11 @@ export default function FraudNetwork() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const onConnect = useCallback((params: Connection | Edge) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
 
@@ -47,6 +53,14 @@ export default function FraudNetwork() {
       setIsProcessing(false);
     }, 2000);
   };
+
+  if (!mounted) {
+    return (
+      <main className="min-h-screen pt-24 bg-background">
+        <Navbar />
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen pt-24 pb-12 px-6 flex flex-col">

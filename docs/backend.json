@@ -1,0 +1,47 @@
+
+{
+  "entities": {
+    "Investigation": {
+      "title": "Investigation",
+      "description": "Record of a scam analysis or currency check",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["scam-message", "counterfeit-currency", "network-analysis"] },
+        "title": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "riskScore": { "type": "number" },
+        "status": { "type": "string", "enum": ["Pending", "Analyzing", "Completed", "Alert"] },
+        "details": { "type": "string", "description": "JSON string of analysis results" }
+      },
+      "required": ["userId", "type", "timestamp", "riskScore", "status"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["agent", "admin"] }
+      },
+      "required": ["uid", "email"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com", "password"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/backend/entities/UserProfile" },
+      "description": "User profiles"
+    },
+    "/users/{userId}/investigations/{investigationId}": {
+      "schema": { "$ref": "#/backend/entities/Investigation" },
+      "description": "Collection of investigations per user"
+    }
+  }
+}

@@ -22,11 +22,9 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  Cell,
   PieChart,
-  Pie
+  Pie,
+  Cell
 } from "recharts";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +70,9 @@ export default function Dashboard() {
     return (
       <main className="min-h-screen bg-background">
         <Navbar />
+        <div className="max-w-7xl mx-auto p-6">
+          <div className="h-32 w-full animate-pulse bg-white/5 rounded-xl" />
+        </div>
       </main>
     );
   }
@@ -146,7 +147,7 @@ export default function Dashboard() {
               <CardTitle className="headline text-lg">Case Distribution</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-[300px] flex items-center justify-center relative">
+              <div className="h-[200px] flex items-center justify-center relative">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -167,9 +168,9 @@ export default function Dashboard() {
                     />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="absolute flex flex-col items-center justify-center">
+                <div className="absolute flex flex-col items-center justify-center pointer-events-none">
                    <span className="text-2xl font-bold">100%</span>
-                   <span className="text-[10px] text-muted-foreground uppercase tracking-widest">Global Coverage</span>
+                   <span className="text-[10px] text-muted-foreground uppercase tracking-widest">Global</span>
                 </div>
               </div>
               <div className="mt-4 space-y-2">

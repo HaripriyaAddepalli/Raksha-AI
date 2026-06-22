@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -12,13 +13,11 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { 
-  History, 
   Download, 
   ExternalLink, 
   ShieldAlert, 
   FileText, 
   Network,
-  MoreVertical,
   Filter
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,6 +33,20 @@ const mockHistory = [
 ];
 
 export default function ActivityHistory() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <main className="min-h-screen pt-24 bg-background">
+        <Navbar />
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen pt-24 pb-12 px-6">
       <Navbar />
