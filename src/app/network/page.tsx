@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import ReactFlow, { 
   Background, 
   Controls, 
@@ -16,8 +16,9 @@ import 'reactflow/dist/style.css';
 import { Navbar } from "@/components/layout/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Network, Upload, Share2, Filter } from "lucide-react";
+import { Network, Upload, Share2, Filter, PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
 
 const initialNodes = [
   { id: '1', position: { x: 250, y: 0 }, data: { label: 'Primary Account #8241' }, style: { border: '2px solid #ef4444', padding: '10px' } },
@@ -40,6 +41,7 @@ export default function FraudNetwork() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [isProcessing, setIsProcessing] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -47,20 +49,80 @@ export default function FraudNetwork() {
 
   const onConnect = useCallback((params: Connection | Edge) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
 
-  const handleFileUpload = () => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
     setIsProcessing(true);
-    setTimeout(() => {
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      // Simple CSV parsing: Source, Target, Amount, Label
+      const lines = content.split('\n').slice(1); // skip header
+      const newNodes: any[] = [];
+      const newEdges: any[] = [];
+      const nodeSet = new Set();
+
+      lines.forEach((line, index) => {
+        const [source, target, amount, label] = line.split(',').map(s => s?.trim());
+        if (!source || !target) return;
+
+        if (!nodeSet.has(source)) {
+          newNodes.push({
+            id: source,
+            position: { x: Math.random() * 500, y: index * 100 },
+            data: { label: source },
+            style: { border: '2px solid #2563eb' }
+          });
+          nodeSet.add(source);
+        }
+        if (!nodeSet.has(target)) {
+          newNodes.push({
+            id: target,
+            position: { x: Math.random() * 500, y: index * 100 + 50 },
+            data: { label: target },
+            style: { border: '2px solid #64748b' }
+          });
+          nodeSet.add(target);
+        }
+
+        newEdges.push({
+          id: `e-${source}-${target}-${index}`,
+          source,
+          target,
+          label: amount || label || '',
+          animated: true
+        });
+      });
+
+      if (newNodes.length > 0) {
+        setNodes(newNodes);
+        setEdges(newEdges);
+        toast({ title: "Analysis Complete", description: `Mapped ${newNodes.length} nodes and ${newEdges.length} connections.` });
+      } else {
+        toast({ variant: "destructive", title: "Parsing Error", description: "CSV format invalid. Expected: Source, Target, Amount, Label" });
+      }
       setIsProcessing(false);
-    }, 2000);
+    };
+    reader.onerror = () => {
+      setIsProcessing(false);
+      toast({ variant: "destructive", title: "Upload Failed", description: "Could not read CSV file." });
+    };
+    reader.readAsText(file);
   };
 
-  if (!mounted) {
-    return (
-      <main className="min-h-screen pt-24 bg-background">
-        <Navbar />
-      </main>
-    );
-  }
+  const handleDemoMode = () => {
+    setIsProcessing(true);
+    setTimeout(() => {
+      setNodes(initialNodes);
+      setEdges(initialEdges);
+      setIsProcessing(false);
+      toast({ title: "Demo Mode Active", description: "Loaded known fraud ring pattern." });
+    }, 1500);
+  };
+
+  if (!mounted) return <div className="min-h-screen bg-background" />;
 
   return (
     <main className="min-h-screen pt-24 pb-12 px-6 flex flex-col">
@@ -75,19 +137,25 @@ export default function FraudNetwork() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" className="glass border-white/10" onClick={handleFileUpload}>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              className="hidden" 
+              accept=".csv" 
+              onChange={handleFileUpload} 
+            />
+            <Button variant="outline" className="glass border-white/10" onClick={() => fileInputRef.current?.click()}>
               <Upload className="w-4 h-4 mr-2" />
               Upload CSV
             </Button>
-            <Button className="bg-primary hover:bg-primary/90">
-              <Filter className="w-4 h-4 mr-2" />
-              Cluster Analysis
+            <Button className="bg-primary hover:bg-primary/90" onClick={handleDemoMode}>
+              <PlayCircle className="w-4 h-4 mr-2" />
+              Demo Ring
             </Button>
           </div>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1">
-          {/* Sidebar controls */}
           <div className="space-y-6">
             <Card className="glass">
               <CardHeader>
@@ -105,12 +173,9 @@ export default function FraudNetwork() {
                 <div className="space-y-2">
                   <h5 className="text-[10px] font-bold uppercase text-muted-foreground">Summary</h5>
                   <p className="text-xs leading-relaxed">
-                    Detected automated transfer cycle between 12 distinct shell accounts. Funds consolidating in "Aggregator Node" before off-ramping.
+                    Detected automated transfer cycle between multiple accounts. Funds consolidating in "Aggregator Node" before off-ramping to high-risk IPs.
                   </p>
                 </div>
-                <Button variant="outline" className="w-full text-xs headline py-1 border-white/10">
-                   <Share2 className="w-3 h-3 mr-2" /> Export Graph
-                </Button>
               </CardContent>
             </Card>
 
@@ -135,7 +200,6 @@ export default function FraudNetwork() {
             </Card>
           </div>
 
-          {/* Flow Visualizer */}
           <Card className="glass lg:col-span-3 h-[600px] overflow-hidden relative">
             <div className="absolute top-4 left-4 z-10 flex gap-2">
                <div className="px-3 py-1 bg-card/80 border border-white/10 rounded-full flex items-center gap-2 text-[10px] font-bold headline">

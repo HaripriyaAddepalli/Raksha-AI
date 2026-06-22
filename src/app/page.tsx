@@ -70,7 +70,7 @@ export default function Dashboard() {
     return (
       <main className="min-h-screen bg-background">
         <Navbar />
-        <div className="max-w-7xl mx-auto p-6">
+        <div className="max-w-7xl mx-auto p-6 pt-24">
           <div className="h-32 w-full animate-pulse bg-white/5 rounded-xl" />
         </div>
       </main>
@@ -90,7 +90,6 @@ export default function Dashboard() {
           </p>
         </header>
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {stats.map((stat, i) => (
             <Card key={i} className="glass">
@@ -109,7 +108,6 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="glass col-span-1 lg:col-span-2">
             <CardHeader>
@@ -188,12 +186,10 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Bottom Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card className="glass">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="headline text-lg">Recent Investigations</CardTitle>
-              <button className="text-xs text-primary hover:underline font-medium">View Archive</button>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
