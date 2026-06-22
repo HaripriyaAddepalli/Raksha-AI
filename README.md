@@ -1,4 +1,4 @@
-<img width="1523" height="787" alt="Screenshot 2026-06-22 212346" src="https://github.com/user-attachments/assets/0d01c0aa-4329-4098-b5ae-210e66e34ed4" /><img width="1523" height="787" alt="Screenshot 2026-06-22 212346" src="https://github.com/user-attachments/assets/cbc95982-0060-4f7f-bc8b-44a3365b34f6" /># 🛡️ RAKSHA AI - Digital Public Safety Intelligence
+ 🛡️ RAKSHA AI - Digital Public Safety Intelligence
 
 RAKSHA AI is an AI-powered public safety platform designed to combat digital fraud, counterfeit currency, and organized scam networks using Generative AI, visual intelligence, and data-driven analytics.
 
