@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { analyzeCurrency, CounterfeitCurrencyAnalyzerOutput } from "@/ai/flows/counterfeit-currency-analyzer-flow";
 import { Shield, Upload, FileImage, Search, CheckCircle2, AlertTriangle, XCircle, PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,10 @@ export default function CurrencyAnalyzer() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (selected) {
+      if (selected.size > 5 * 1024 * 1024) {
+        toast({ variant: "destructive", title: "File too large", description: "Please upload an image smaller than 5MB." });
+        return;
+      }
       setFile(selected);
       const reader = new FileReader();
       reader.onloadend = () => setPreview(reader.result as string);
@@ -76,7 +81,7 @@ export default function CurrencyAnalyzer() {
       saveInvestigation(output);
     } catch (error) {
       console.error("Currency analysis error:", error);
-      toast({ variant: "destructive", title: "Error", description: "Analysis failed." });
+      toast({ variant: "destructive", title: "Error", description: "Analysis failed. Please try again or use demo mode." });
     } finally {
       setLoading(false);
     }
@@ -110,7 +115,7 @@ export default function CurrencyAnalyzer() {
             <CardContent className="flex-1 flex flex-col gap-4">
               <div 
                 className={cn(
-                  "flex-1 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center p-8 relative",
+                  "flex-1 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center p-8 relative overflow-hidden",
                   !preview && "hover:border-primary/50 cursor-pointer bg-white/5",
                   preview && "bg-black/40"
                 )}
@@ -121,6 +126,7 @@ export default function CurrencyAnalyzer() {
                   <>
                     <FileImage className="w-16 h-16 text-muted-foreground mb-4" />
                     <p className="headline font-bold text-lg">Click to Upload</p>
+                    <p className="text-xs text-muted-foreground mt-2">Maximum size: 5MB</p>
                   </>
                 ) : (
                   <div className="w-full h-full min-h-[300px] relative group">
@@ -128,12 +134,12 @@ export default function CurrencyAnalyzer() {
                     {loading && (
                       <div className="absolute inset-0 bg-primary/20 backdrop-blur-sm flex flex-col items-center justify-center">
                         <div className="w-full h-1 bg-white/10 overflow-hidden relative">
-                           <div className="absolute inset-0 bg-primary animate-[move-x_1.5s_infinite]" style={{ width: '30%' }} />
+                           <div className="absolute inset-0 bg-primary animate-move-x" style={{ width: '30%' }} />
                         </div>
                         <p className="mt-4 headline font-bold">Scanning Matrix...</p>
                       </div>
                     )}
-                    <button className="absolute top-2 right-2 p-2 bg-destructive/80 text-white rounded-full" onClick={(e) => { e.stopPropagation(); reset(); }}>
+                    <button className="absolute top-2 right-2 p-2 bg-destructive/80 text-white rounded-full z-10" onClick={(e) => { e.stopPropagation(); reset(); }}>
                       <XCircle className="w-5 h-5" />
                     </button>
                   </div>
@@ -180,9 +186,20 @@ export default function CurrencyAnalyzer() {
                        <h5 className="headline text-sm font-bold flex items-center gap-2">Security Features</h5>
                        <div className="grid grid-cols-1 gap-2">
                           {result.securityFeatureCheck.map((feature, i) => (
-                            <div key={i} className="text-xs p-2 bg-white/5 rounded flex justify-between">
+                            <div key={i} className="text-xs p-2 bg-white/5 rounded flex justify-between items-center">
                                <span>{feature}</span>
-                               <CheckCircle2 className={cn("w-4 h-4", feature.toLowerCase().includes('missing') || feature.toLowerCase().includes('fake') ? "text-destructive" : "text-emerald-500")} />
+                               <CheckCircle2 className={cn("w-4 h-4 shrink-0 ml-2", (feature.toLowerCase().includes('missing') || feature.toLowerCase().includes('fake') || feature.toLowerCase().includes('incorrect')) ? "text-destructive" : "text-emerald-500")} />
+                            </div>
+                          ))}
+                       </div>
+                    </div>
+                    <div className="space-y-3">
+                       <h5 className="headline text-sm font-bold flex items-center gap-2">Suspicious Regions</h5>
+                       <div className="grid grid-cols-1 gap-2">
+                          {result.suspiciousRegions.map((region, i) => (
+                            <div key={i} className="text-xs p-2 bg-destructive/10 border border-destructive/20 rounded flex items-center gap-2">
+                               <AlertTriangle className="w-3 h-3 text-destructive" />
+                               <span>{region}</span>
                             </div>
                           ))}
                        </div>
